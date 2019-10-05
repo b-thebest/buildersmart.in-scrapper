@@ -1,5 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
+import urllib
+import os
 
 links = ['https://www.buildersmart.in/cement',
          'https://www.buildersmart.in/sand',
@@ -27,23 +29,40 @@ for link in links:
 
     category_name = link.split('/')[-1]
     print(category_name, link)
+    if not os.path.exists('images/' + category_name):
+        os.makedirs('images/' + category_name)
 
-    i = 1
-    while True:
-        page = requests.get(link + '?p=' + str(i))
-        soup = BeautifulSoup(page.text, 'html.parser')
+    with open(str(category_name) + '.csv', 'a') as csv_file:
+        for i in range(1, 30, 1):
+            empty = []
+            print(i)
+            page = requests.get(link + '?limit=12&p=' + str(i))
+            soup = BeautifulSoup(page.text, 'html.parser')
 
-        pages = soup.find(class_='pages')
+            pages = soup.find(class_='pages')
 
-        page_list = pages.find_all('a')
-        next = str(page_list[0])[-5]
+            page_list = soup.find_all('a', {'class': 'next i-next'})
+            #print(page_list)
 
-        if next != i:
-            products = soup.find(class_ = 'product-image')
-            product_link = products.find_all('a')
-            print(product_link)
+            product_block = soup.find('div', {'id' : 'category-products-wrap'})
+            product_link = product_block.find_all('div', {'class': 'item-inner'})
+            # product_link = products.find_all('a')
+            #print('productlink', len(product_link))
+
             for product in product_link:
-                print(product.get('href'))
-
-        i+=1
-
+                if len(product.div['class']) == 1:
+                    #print(product.a['href'])
+                    product_page = requests.get(product.a['href'])
+                    product_soup = BeautifulSoup(product_page.text, 'html.parser')
+                    name = product_soup.find_all('div', {'class' : 'product-name'})[0].h1.text
+                    price = product_soup.find_all('span', {'class' : 'price'})[-1].text
+                    description = product_soup.find_all('div', {'class' : 'std'})[-1].text
+                    description = description.replace(',', '')
+                    img_link = product_soup.find_all('div', {'class' : 'more-views'})
+                    img_link = img_link[0].ul.li.a['href']
+                    urllib.request.urlretrieve(img_link, 'images/' + category_name + '/' + name)
+                    arr = [name, price, description, category_name, img_link]
+                    csv_file.write(arr)
+            if page_list == empty:
+                break
+    csv_file.close()

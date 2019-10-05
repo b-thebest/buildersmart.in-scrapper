@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import urllib
 import os
+import csv
 
 links = ['https://www.buildersmart.in/cement',
          'https://www.buildersmart.in/sand',
@@ -25,18 +26,23 @@ links = ['https://www.buildersmart.in/cement',
          'https://www.buildersmart.in/construction-chemicals',
          'https://www.buildersmart.in/glass-hardware']
 
-for link in links:
+resume_file = open('lastSession.txt', 'r')
+start = int(resume_file.read())
+for index, link in enumerate(links[start:]):
+    write_resume = open('lastSession.txt', 'w+')
+    write_resume.write(str(index+start))
 
     category_name = link.split('/')[-1]
     print(category_name, link)
     if not os.path.exists('images/' + category_name):
         os.makedirs('images/' + category_name)
 
-    with open(str(category_name) + '.csv', 'a') as csv_file:
-        for i in range(1, 30, 1):
+    with open('csvFiles/' + str(category_name) + '.csv', 'w+') as csv_file:
+        writer = csv.writer(csv_file)
+        for page_number in range(1, 30, 1):
             empty = []
-            print(i)
-            page = requests.get(link + '?limit=12&p=' + str(i))
+            print(page_number)
+            page = requests.get(link + '?limit=12&p=' + str(page_number))
             soup = BeautifulSoup(page.text, 'html.parser')
 
             pages = soup.find(class_='pages')
@@ -58,11 +64,12 @@ for link in links:
                     price = product_soup.find_all('span', {'class' : 'price'})[-1].text
                     description = product_soup.find_all('div', {'class' : 'std'})[-1].text
                     description = description.replace(',', '')
+                    description = description.replace('\n', ' ')
                     img_link = product_soup.find_all('div', {'class' : 'more-views'})
                     img_link = img_link[0].ul.li.a['href']
                     urllib.request.urlretrieve(img_link, 'images/' + category_name + '/' + name)
-                    arr = [name, price, description, category_name, img_link]
-                    csv_file.write(arr)
+                    arr = [str(name), str(price), str(description), str(category_name), str(img_link)]
+                    writer.writerow(arr)
             if page_list == empty:
                 break
     csv_file.close()
